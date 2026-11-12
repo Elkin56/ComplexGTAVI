@@ -1,0 +1,5 @@
+# HTTPS-сертификат Let's Encrypt выпускается автоматически. DOMAIN задаётся в .env
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy web:3000
+}

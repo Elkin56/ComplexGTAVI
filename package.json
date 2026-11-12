@@ -1,0 +1,11 @@
+{
+  "name": "complex-pc",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "npm run dev -w @complex/web",
+    "build": "npm run build -w @complex/web",
+    "test": "npm test -w @complex/core && npm test -w @complex/web",
+    "db:migrate": "npm run db:migrate -w @complex/web"
+  }
+}

@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PurchaseCategory {
+  PC
+  COMPONENTS
+  PERIPHERALS
+  OTHER
+}
+
+enum PurchaseStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum TicketStatus {
+  ACTIVE
+  VOID
+}
+
+enum AdminRole {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RaffleStatus {
+  DRAFT
+  ACTIVE
+  REGISTRATION_CLOSED
+  FINISHED
+}
+
+model User {
+  id             Int             @id @default(autoincrement())
+  telegramId     BigInt          @unique
+  username       String?
+  firstName      String
+  lastName       String?
+  phone          String?         @unique
+  consentAt      DateTime?
+  consentVersion String?
+  notifyEnabled  Boolean         @default(true)
+  botBlocked     Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  purchases      Purchase[]
+  tickets        Ticket[]
+  claims         PurchaseClaim[]
+}
+
+model Purchase {
+  id             Int              @id @default(autoincrement())
+  userId         Int
+  receiptNumber  String           @unique
+  amount         Decimal          @db.Decimal(12, 2)
+  category       PurchaseCategory
+  ticketsAwarded Int
+  purchasedAt    DateTime
+  createdBy      Int?
+  createdAt      DateTime         @default(now())
+  status         PurchaseStatus   @default(ACTIVE)
+  cancelledAt    DateTime?
+  cancelReason   String?
+  user           User             @relation(fields: [userId], references: [id])
+  admin          Admin?           @relation(fields: [createdBy], references: [id])
+  tickets        Ticket[]
+  claim          PurchaseClaim?
+
+  @@index([userId])
+}
+
+model Ticket {
+  id           Int          @id @default(autoincrement())
+  ticketNumber String       @unique
+  ticketSeq    Int          @unique
+  userId       Int
+  purchaseId   Int
+  status       TicketStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now())
+  user         User         @relation(fields: [userId], references: [id])
+  purchase     Purchase     @relation(fields: [purchaseId], references: [id])
+  wonRaffle    Raffle?
+
+  @@index([userId])
+  @@index([purchaseId])
+}
+
+model Admin {
+  id             Int             @id @default(autoincrement())
+  telegramId     BigInt          @unique
+  role           AdminRole       @default(STAFF)
+  createdAt      DateTime        @default(now())
+  purchases      Purchase[]
+  auditLogs      AuditLog[]
+  reviewedClaims PurchaseClaim[]
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  adminId   Int?
+  action    String
+  details   Json
+  createdAt DateTime @default(now())
+  admin     Admin?   @relation(fields: [adminId], references: [id])
+
+  @@index([createdAt])
+}
+
+model Raffle {
+  id             Int          @id @default(autoincrement())
+  title          String
+  startDate      DateTime
+  endDate        DateTime
+  timezone       String       @default("Europe/Moscow")
+  status         RaffleStatus @default(DRAFT)
+  winnerTicketId Int?         @unique
+  winnerFixedAt  DateTime?
+  streamUrl      String?
+  winnerTicket   Ticket?      @relation(fields: [winnerTicketId], references: [id])
+}
+
+model PurchaseClaim {
+  id            Int              @id @default(autoincrement())
+  userId        Int
+  receiptNumber String
+  amount        Decimal          @db.Decimal(12, 2)
+  category      PurchaseCategory
+  purchasedAt   DateTime
+  photo         Bytes?
+  photoMime     String?
+  status        ClaimStatus      @default(PENDING)
+  reviewedBy    Int?
+  reviewedAt    DateTime?
+  rejectReason  String?
+  verifyNote    String?
+  purchaseId    Int?             @unique
+  createdAt     DateTime         @default(now())
+  user          User             @relation(fields: [userId], references: [id])
+  reviewer      Admin?           @relation(fields: [reviewedBy], references: [id])
+  purchase      Purchase?        @relation(fields: [purchaseId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([receiptNumber])
+}
+
+model ReminderLog {
+  id       Int      @id @default(autoincrement())
+  raffleId Int
+  kind     String
+  sentAt   DateTime @default(now())
+
+  @@unique([raffleId, kind])
+}
